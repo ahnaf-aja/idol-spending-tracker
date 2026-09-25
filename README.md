@@ -111,6 +111,8 @@ npm run test:e2e       # terminal 2
 
 ## Deploy
 
+Aplikasi sudah live di **https://idol-spending-tracker.vercel.app** (Vercel + Neon Postgres, gratis).
+
 1. Set `DATABASE_URL`, `APP_URL`, `APP_TIMEZONE`, dan `SEED_USER_*` di environment.
 2. `npm run db:push` (atau `npm run db:migrate` untuk migrasi berversi).
 3. `npm run seed` sekali untuk membuat owner.
@@ -118,3 +120,25 @@ npm run test:e2e       # terminal 2
 5. Untuk email reset password sungguhan, isi `SMTP_HOST`/`SMTP_PORT`/`SMTP_USER`/`SMTP_PASS` (atau `SMTP_URL`).
 
 `.env` sudah di-gitignore — jangan pernah commit credential.
+
+### Catatan penting untuk produksi
+
+- **Forgot Password belum berfungsi untuk user sungguhan.** Tanpa `SMTP_*`, link reset ditulis ke `.dev-outbox/` di server, bukan dikirim lewat email. Halaman tetap memberi pesan generik (req 6) dan token tetap dibuat, tapi user tidak akan pernah menerima linknya. Isi SMTP dulu kalau fitur ini mau dipakai.
+- **Rate limit aktif di produksi** (req 40): 8 percobaan login per 5 menit per IP+identifier. Kalau terkunci, tunggu window-nya lewat atau bersihkan tabel `rate_limit_hits`.
+- **Ownership tetap ditegakkan di produksi**: `user_id` selalu dari session, data user lain → 404.
+
+### Deploy ulang (Vercel + Neon)
+
+```bash
+vercel link --yes --project idol-spending-tracker   # sekali saja
+vercel integration add neon                          # sekali saja (bikin DATABASE_URL)
+vercel env add APP_URL production                    # https://<domain>
+vercel deploy --prod --yes
+```
+
+Dua pitfall yang sudah terbukti di project ini:
+
+1. **Deployment Protection.** Project baru bisa default ke SSO, sehingga semua request 302 ke `vercel.com/sso-api` dan orang tanpa akun Vercel tidak bisa membuka link. Matikan: `vercel project protection disable --sso`. Verifikasi dengan `curl` tanpa auth — halaman publik harus 200, bukan 302.
+2. **`.env` ikut ter-upload.** Vercel CLI mengabaikan `.gitignore`. `.vercelignore` di repo ini sudah mengecualikan `.env`/`.env.*` supaya `APP_URL` lokal tidak menimpa environment produksi.
+
+Saat mengubah schema: jalankan `prisma db push` memakai `DATABASE_URL_UNPOOLED` (bukan yang `-pooler`), lalu `npm run seed` dengan `DATABASE_URL` yang sama.
