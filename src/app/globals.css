@@ -1,26 +1,187 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:is(.dark *));
+
+/* ---------------------------------------------------------------------------
+   Design tokens. Modern / minimalist personal-finance look: soft surfaces,
+   generous whitespace, one indigo accent. Charts reference these same tokens
+   so they stay readable in dark mode.
+--------------------------------------------------------------------------- */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --radius: 0.9rem;
+
+  --background: hsl(228 33% 98%);
+  --foreground: hsl(228 26% 12%);
+  --card: hsl(0 0% 100%);
+  --card-foreground: hsl(228 26% 12%);
+  --popover: hsl(0 0% 100%);
+  --popover-foreground: hsl(228 26% 12%);
+  --primary: hsl(243 72% 58%);
+  --primary-foreground: hsl(0 0% 100%);
+  --secondary: hsl(228 22% 95%);
+  --secondary-foreground: hsl(228 22% 22%);
+  --muted: hsl(228 22% 95%);
+  --muted-foreground: hsl(228 12% 46%);
+  --accent: hsl(243 60% 96%);
+  --accent-foreground: hsl(243 55% 38%);
+  --destructive: hsl(0 72% 51%);
+  --destructive-foreground: hsl(0 0% 100%);
+  --border: hsl(228 20% 90%);
+  --input: hsl(228 20% 88%);
+  --ring: hsl(243 72% 58%);
+  --success: hsl(160 84% 39%);
+  --warning: hsl(38 92% 50%);
+}
+
+.dark {
+  --background: hsl(228 26% 8%);
+  --foreground: hsl(220 22% 96%);
+  --card: hsl(228 22% 11.5%);
+  --card-foreground: hsl(220 22% 96%);
+  --popover: hsl(228 22% 13%);
+  --popover-foreground: hsl(220 22% 96%);
+  --primary: hsl(243 82% 70%);
+  --primary-foreground: hsl(228 30% 9%);
+  --secondary: hsl(228 18% 18%);
+  --secondary-foreground: hsl(220 22% 94%);
+  --muted: hsl(228 18% 17%);
+  --muted-foreground: hsl(228 12% 66%);
+  --accent: hsl(228 18% 20%);
+  --accent-foreground: hsl(220 22% 94%);
+  --destructive: hsl(0 70% 58%);
+  --destructive-foreground: hsl(0 0% 100%);
+  --border: hsl(228 16% 21%);
+  --input: hsl(228 16% 24%);
+  --ring: hsl(243 82% 70%);
+  --success: hsl(160 70% 45%);
+  --warning: hsl(38 92% 58%);
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+
+  --radius-sm: calc(var(--radius) - 6px);
+  --radius-md: calc(var(--radius) - 3px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --radius-2xl: calc(var(--radius) + 10px);
+  --radius-3xl: calc(var(--radius) + 18px);
+
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+@layer base {
+  * {
+    border-color: var(--border);
+  }
+
+  html {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  body {
+    background-color: var(--background);
+    color: var(--foreground);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  /* Subtle, premium page background */
+  body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    background:
+      radial-gradient(60rem 30rem at 12% -8%, color-mix(in oklab, var(--primary) 12%, transparent), transparent 70%),
+      radial-gradient(45rem 25rem at 100% 0%, color-mix(in oklab, var(--accent-foreground) 8%, transparent), transparent 75%);
+  }
+
+  ::selection {
+    background: color-mix(in oklab, var(--primary) 28%, transparent);
+  }
+
+  /* Currency / nominal inputs: no spinners, typed by hand */
+  input[type="number"]::-webkit-outer-spin-button,
+  input[type="number"]::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+
+  input[type="number"] {
+    -moz-appearance: textfield;
+  }
+
+  h1, h2, h3 {
+    font-weight: 700;
+    letter-spacing: -0.015em;
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+@layer components {
+  .ist-card {
+    @apply rounded-2xl border border-border/70 bg-card shadow-sm shadow-black/[0.03] dark:shadow-black/20;
+  }
+
+  /* Native date input aligned with our inputs */
+  .ist-date-input {
+    @apply h-11 w-full rounded-xl border border-input bg-background/60 px-3.5 text-[15px] shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/30 dark:bg-input/25;
+  }
+}
+
+@layer utilities {
+  .scrollbar-thin {
+    scrollbar-width: thin;
+  }
+
+  .safe-bottom {
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+
+  .animate-rise {
+    animation: ist-rise 0.28s cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+}
+
+@keyframes ist-rise {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Recharts chrome follows the theme */
+.recharts-default-tooltip {
+  border-radius: 12px !important;
+}
+
+.recharts-surface:focus {
+  outline: none;
 }

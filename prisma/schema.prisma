@@ -1,0 +1,113 @@
+// Idol Spending Tracker - Prisma schema
+// Postgres + Prisma. Every table that holds user data is reachable only
+// through `user_id`, and every query in the app filters on the authenticated
+// user's id (see src/lib/expenses/repository.ts).
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String   @id @default(cuid())
+  username     String   @unique
+  email        String   @unique
+  passwordHash String   @map("password_hash")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  expenses    Expense[]
+  budgets     Budget[]
+  sessions    Session[]
+  resetTokens PasswordResetToken[]
+
+  @@map("users")
+}
+
+model Expense {
+  id             String   @id @default(cuid())
+  userId         String   @map("user_id")
+  idolType       String   @map("idol_type") // JKT48 | TNT | OTHER
+  customIdolName String?  @map("custom_idol_name") // filled only when idolType = OTHER
+  memberName     String?  @map("member_name") // normalised UPPERCASE, null when not member-specific
+  category       String // SHOW | GIFT_BARANG | GIFT_LIVE | CHEKI | MNG | TWO_SHOT | VC
+  amount         Int // whole rupiah, no decimals
+  expenseDate    DateTime @map("expense_date") @db.Date // calendar date, stored at UTC midnight
+  note           String?
+  // Per-form-submission idempotency key (requirement 46). One key can only ever
+  // produce one row, so a replayed/double-fired server action cannot create two
+  // identical transactions. Nullable: rows created without a key are unaffected
+  // by the unique index, since Postgres treats NULLs as distinct.
+  clientToken    String?  @map("client_token")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, clientToken])
+  @@index([userId, expenseDate])
+  @@index([userId, memberName])
+  @@index([userId, category])
+  @@index([userId, idolType])
+  @@map("expenses")
+}
+
+model Budget {
+  id          String   @id @default(cuid())
+  userId      String   @map("user_id")
+  amount      Int
+  periodStart DateTime @map("period_start") @db.Date
+  periodEnd   DateTime @map("period_end") @db.Date
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, periodStart])
+  @@index([userId])
+  @@map("budgets")
+}
+
+model PasswordResetToken {
+  id        String    @id @default(cuid())
+  userId    String    @map("user_id")
+  tokenHash String    @unique @map("token_hash") // sha256 of the raw token; raw value is never stored
+  expiresAt DateTime  @map("expires_at")
+  usedAt    DateTime? @map("used_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("password_reset_tokens")
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  userId    String   @map("user_id")
+  tokenHash String   @unique @map("token_hash") // sha256 of the cookie token
+  expiresAt DateTime @map("expires_at")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("sessions")
+}
+
+model RateLimitHit {
+  id          String   @id @default(cuid())
+  key         String
+  windowStart DateTime @map("window_start")
+  count       Int      @default(0)
+
+  @@unique([key, windowStart])
+  @@index([windowStart])
+  @@map("rate_limit_hits")
+}

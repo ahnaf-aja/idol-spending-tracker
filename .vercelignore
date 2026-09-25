@@ -1,0 +1,17 @@
+# Never upload local secrets to a Vercel build.
+# The Vercel CLI ignores .gitignore, so these entries are required: Next.js
+# loads a bundled .env at runtime, which would silently override the project's
+# own environment variables (e.g. a localhost APP_URL).
+.env
+.env.*
+!.env.example
+
+# Local-only mail outbox (contains password reset links)
+.dev-outbox/
+
+# Local test / build artifacts
+node_modules/
+.next/
+test-results/
+playwright-report/
+coverage/
