@@ -393,3 +393,99 @@ test("dark mode toggle tersedia dan chart tetap ter-render", async ({ page }) =>
   await expect(page.locator("html")).not.toHaveClass(/dark/);
 });
 
+/**
+ * The new "Top Up Point" category, driven through the real UI end to end:
+ * present in the Add Expense picker and the History filter, counted by every
+ * aggregate, visible in the Member Journal, and re-editable in both directions.
+ *
+ * Runs on its own fresh account so the numbers are exact and independent of
+ * whatever the earlier tests in this file accumulated.
+ */
+test("kategori Top Up Point: tambah, tampil di semua halaman, lalu edit bolak-balik", async ({ page }) => {
+  const stamp = Math.random().toString(36).slice(2, 8);
+  const user = {
+    username: `e2e_tup_${stamp}`,
+    email: `e2e_tup_${stamp}@example.test`,
+    password: "TopUpPoint123",
+    newPassword: "TopUpPoint123",
+  };
+  await registerUser(page, user);
+
+  const row = page.getByTestId("expense-row").filter({ hasText: "TOPUPCHECK" });
+
+  // The picker offers it, spelled as the user expects.
+  await addExpense(page, {
+    idol: "JKT48",
+    member: "TOPUPCHECK",
+    category: "Top Up Point",
+    amount: 500_000,
+    date: "2026-09-26",
+    note: "Top up point live",
+  });
+
+  // Dashboard: total, count and Recent Transactions (fresh account -> exact).
+  await expect(page.getByText("Pengeluaran berhasil ditambahkan.").first()).toBeVisible();
+  await expect(page.getByText("JKT48 • TOPUPCHECK").first()).toBeVisible();
+  await expect(page.getByText("Rp500.000").first()).toBeVisible();
+  await expect(page.getByText("1 transaksi").first()).toBeVisible();
+
+  // History: the row, its label, and the category filter.
+  // `exact` matters here: the note "Top up point live" also contains the words,
+  // so an inexact match resolves to both the category badge and the note.
+  await page.goto("/history");
+  await expect(row.first()).toBeVisible();
+  await expect(row.first().getByText("Top Up Point", { exact: true })).toBeVisible();
+  await page.getByLabel("Category", { exact: true }).click();
+  await expect(page.getByRole("option", { name: "Top Up Point" })).toBeVisible();
+  await page.getByRole("option", { name: "Top Up Point" }).click();
+  await expect(page.getByTestId("expense-row")).toHaveCount(1);
+
+  // Statistics: it gets its own slice and its own bar in the chart.
+  await page.goto("/statistics");
+  await expect(page.getByText("Rincian per Kategori")).toBeVisible();
+  await expect(page.getByText("Top Up Point", { exact: true }).first()).toBeVisible();
+  await expect(page.getByText("Rp500.000").first()).toBeVisible();
+
+  // Member Journal: inside that member's journal, with the note as the entry.
+  await page.goto("/journal");
+  await page.getByRole("link", { name: /TOPUPCHECK/ }).first().click();
+  await page.waitForURL(/\/journal\//);
+  await expect(page.locator("main").getByText("Top Up Point").first()).toBeVisible();
+  await expect(page.getByText("Top up point live").first()).toBeVisible();
+
+  // Budget: the new category raises "spent" for the period.
+  await page.goto("/budget");
+  await page.getByLabel(/Budget untuk/).fill("2000000");
+  await page.getByRole("button", { name: "Simpan Budget" }).click();
+  await expect(page.getByText(/Spent saat ini Rp500\.000 dari 1 transaksi/)).toBeVisible();
+
+  // Edit: change the category to VC and confirm every surface follows.
+  await page.goto("/history");
+  await row.first().getByRole("link", { name: "Edit transaksi" }).click();
+  await page.waitForURL(/\/expenses\/.+\/edit/);
+  await page.getByTestId("step-title").waitFor();
+  await page.getByRole("button", { name: "Jenis", exact: true }).click();
+  await page.getByRole("radio", { name: "VC", exact: true }).click();
+  await page.getByRole("button", { name: "Konfirmasi", exact: true }).click();
+  await page.getByRole("button", { name: "Simpan Perubahan" }).click();
+  await page.waitForURL(/\/history/, { timeout: 30_000 });
+  await expect(row.first().getByText("VC", { exact: true })).toBeVisible();
+
+  await page.goto("/statistics");
+  await expect(page.getByText("Top Up Point", { exact: true })).toHaveCount(0);
+
+  // And back again - the category survives a second edit.
+  await page.goto("/history");
+  await row.first().getByRole("link", { name: "Edit transaksi" }).click();
+  await page.waitForURL(/\/expenses\/.+\/edit/);
+  await page.getByRole("button", { name: "Jenis", exact: true }).click();
+  await page.getByRole("radio", { name: "Top Up Point", exact: true }).click();
+  await page.getByRole("button", { name: "Konfirmasi", exact: true }).click();
+  await page.getByRole("button", { name: "Simpan Perubahan" }).click();
+  await page.waitForURL(/\/history/, { timeout: 30_000 });
+
+  await page.goto("/statistics");
+  await expect(page.getByText("Top Up Point", { exact: true }).first()).toBeVisible();
+  await expect(page.getByText("Rp500.000").first()).toBeVisible();
+});
+

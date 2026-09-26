@@ -14,6 +14,7 @@ export const EXPENSE_CATEGORIES = [
   "MNG",
   "TWO_SHOT",
   "VC",
+  "TOP_UP_POINT",
 ] as const;
 export type ExpenseCategory = (typeof EXPENSE_CATEGORIES)[number];
 
@@ -34,6 +35,12 @@ export const CATEGORY_META: Record<ExpenseCategory, CategoryMeta> = {
   MNG: { value: "MNG", label: "MNG", icon: "Handshake", color: "#06b6d4" },
   TWO_SHOT: { value: "TWO_SHOT", label: "2S", icon: "Users", color: "#8b5cf6" },
   VC: { value: "VC", label: "VC", icon: "Video", color: "#ef4444" },
+  TOP_UP_POINT: {
+    value: "TOP_UP_POINT",
+    label: "Top Up Point",
+    icon: "Coins",
+    color: "#0ea5e9",
+  },
 };
 
 export const CATEGORY_OPTIONS = EXPENSE_CATEGORIES.map((value) => CATEGORY_META[value]);

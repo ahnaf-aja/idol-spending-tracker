@@ -154,12 +154,30 @@ Status akhir: **CHECKPOINT 1–10 SELESAI.**
 | 8 | **Budget tidak pernah tersimpan** — form mengirim `amount-ui`, action membaca `amount` | Nama field disamakan (`name="amount"`); tereksekusi oleh test end-to-end |
 | 9 | **Toast "Pengeluaran berhasil dihapus." tidak pernah muncul** walau data benar-benar terhapus | Toast dipindah ke dalam closure action, bukan `useEffect` pada state: `revalidatePath` melepas baris di commit yang sama sehingga komponen unmount sebelum effect sempat jalan |
 | 10 | Reset password sukses tidak mengarahkan ulang ke Login (req 7) | `useEffect` redirect ke `/login?reset=success` setelah `state.ok` |
+| 11 | **Local dev & E2E menulis ke database PRODUKSI** — `.env.local` berisi URL Neon, dan Next memuat `.env.local` (menang atas `.env`) di `next dev` juga. Fixture/teardown membaca `.env` (lokal), jadi data test menumpuk di produksi sementara cleanup mengosongkan database yang salah | URL Neon dipindah ke `.env.production.local` (hanya dibaca untuk build production); fixture + teardown menolak berjalan bila host bukan localhost + `tests/env-isolation.test.ts` mengunci aturan ini |
 
 ## Bug yang masih ada
 
-Tidak ada yang diketahui. Verifikasi terakhir: **135 test unit/integration lulus**, **45/45 end-to-end lulus** (desktop + mobile 375px + tablet 768px), **typecheck bersih**, **lint 0 warning**, **production build 16 route**.
+Tidak ada yang diketahui. Verifikasi terakhir: **147 test unit/integration lulus**, **46 test end-to-end lulus** (desktop + mobile 375px + tablet 768px), **typecheck bersih**, **lint 0 warning**, **production build 16 route**.
 
-Catatan: tiga bug di atas (#7, #8, #9) hanya ketahuan lewat test end-to-end di browser sungguhan — test unit memanggil repository langsung sehingga melewati lapisan form ke server action.
+Catatan: bug #7, #8, #9 hanya ketahuan lewat test end-to-end di browser sungguhan — test unit memanggil repository langsung sehingga melewati lapisan form ke server action. Bug #11 juga hanya ketahuan saat menjalankan suite: hasilnya adalah rate limit produksi yang terpicu dan sisa data test di database live.
+
+## Kategori pengeluaran
+
+Satu sumber kebenaran: `src/lib/categories.ts` (`EXPENSE_CATEGORIES`, `CATEGORY_META`,
+`CATEGORY_OPTIONS`, `CATEGORY_LABELS`). Kategori disimpan sebagai `String` di
+database — bukan enum — jadi menambah kategori **tidak butuh migrasi** dan tidak
+menyentuh data lama.
+
+Daftar saat ini: Show, Gift Barang, Gift Live, Cheki, MNG, 2S, VC, **Top Up Point**
+(`TOP_UP_POINT`).
+
+Menambah kategori baru = tambah entri di `EXPENSE_CATEGORIES` + `CATEGORY_META`,
+lalu daftarkan ikonnya di `CATEGORY_ICONS` (`src/components/expenses/fields.tsx`).
+Semua halaman (form tambah/edit, History, filter, Dashboard, Statistics, Member
+Journal, Budget) membaca dari sumber yang sama dan mengagregasi secara dinamis,
+jadi tidak ada daftar kategori yang di-hardcode di tempat lain. Test di
+`tests/domain.test.ts` gagal bila ketiganya tidak sinkron.
 
 ## Next step
 

@@ -34,7 +34,7 @@ model Expense {
   idolType       String   @map("idol_type") // JKT48 | TNT | OTHER
   customIdolName String?  @map("custom_idol_name") // filled only when idolType = OTHER
   memberName     String?  @map("member_name") // normalised UPPERCASE, null when not member-specific
-  category       String // SHOW | GIFT_BARANG | GIFT_LIVE | CHEKI | MNG | TWO_SHOT | VC
+  category       String // SHOW | GIFT_BARANG | GIFT_LIVE | CHEKI | MNG | TWO_SHOT | VC | TOP_UP_POINT
   amount         Int // whole rupiah, no decimals
   expenseDate    DateTime @map("expense_date") @db.Date // calendar date, stored at UTC midnight
   note           String?

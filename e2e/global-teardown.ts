@@ -12,8 +12,43 @@ import "dotenv/config";
  *
  * Every fixture user is prefixed, so the delete is unambiguous. Rate-limit
  * counters are cleared too, so a second run in the same window starts clean.
+ *
+ * Cleanup must target the SAME database the app wrote to. This runs under
+ * `dotenv/config` (`.env`), while the app runs under Next's loader which also
+ * reads `.env.local` - and `.env.local` wins. If a production URL sits there,
+ * the suite writes to production and this teardown cleans localhost, so the
+ * residue silently builds up in the live database. The host is therefore
+ * printed, and a non-local target is only accepted when explicitly allowed.
  */
+const LOCAL_HOSTNAMES = new Set(["localhost", "127.0.0.1", "::1", "[::1]"]);
+
+/** Hostname of DATABASE_URL, or null when unparseable. Never returns credentials. */
+function dbHostname(): string | null {
+  try {
+    return new URL((process.env.DATABASE_URL ?? "").replace(/^"|"$/g, "")).hostname;
+  } catch {
+    return null;
+  }
+}
+
 export default async function globalTeardown() {
+  const host = dbHostname();
+
+  if (host === null) {
+    throw new Error(
+      `E2E teardown refused: DATABASE_URL is missing or unparseable, so there is no\n` +
+        `guarantee the cleanup would target the database the app wrote to.`,
+    );
+  }
+
+  if (!LOCAL_HOSTNAMES.has(host) && process.env.E2E_ALLOW_REMOTE_DB !== "1") {
+    throw new Error(
+      `E2E teardown refused: DATABASE_URL host "${host}" is not local.\n` +
+        `Set E2E_ALLOW_REMOTE_DB=1 to clean a remote database, or point DATABASE_URL at localhost.`,
+    );
+  }
+
+  console.log(`[e2e teardown] target database host: ${host}`);
   const prisma = new PrismaClient();
 
   try {

@@ -64,7 +64,7 @@ src/
     period.ts         mesin periode 25 → 24  ← inti domain
     currency.ts       format Rupiah (id-ID)
     normalize.ts      trim + UPPERCASE nama member
-    categories.ts     taksonomi idol & kategori
+    categories.ts     taksonomi idol & kategori (SUMBER TUNGGAL daftar kategori)
     validation.ts     semua schema Zod
     stats.ts          agregasi dashboard/statistics/journal
     filters.ts        resolusi filter tanggal (current/previous/custom/all)
@@ -92,6 +92,10 @@ e2e/                  alur end-to-end (Playwright, browser asli)
 **Normalisasi member di dua tempat.** Frontend (preview langsung) dan backend (sebelum insert/update) sama-sama `trim().toUpperCase()`. Member kosong disimpan sebagai `null`, bukan `""`. Ini yang membuat Journal tidak pernah memecah `FREYA` dan `Freya` menjadi dua entri.
 
 **Ownership ada di satu tempat.** `src/lib/expenses/repository.ts` selalu mengambil `user_id` dari session; `user_id` dari client tidak pernah dipercaya. Membuka data user lain menghasilkan 404.
+
+**Kategori ada di satu tempat.** `src/lib/categories.ts` memegang seluruh taksonomi (`EXPENSE_CATEGORIES`, `CATEGORY_META`, `CATEGORY_OPTIONS`, `CATEGORY_LABELS`). Kategori disimpan sebagai `String` biasa di database — bukan enum — sehingga menambah kategori tidak butuh migrasi dan tidak menyentuh data lama. Halaman form, History, filter, Dashboard, Statistics, Member Journal, dan Budget semua membaca dari sumber yang sama dan mengagregasi secara dinamis (lihat `src/lib/stats.ts`), jadi tidak ada daftar kategori yang di-hardcode di tempat lain. Menambah kategori = tambah entri di `EXPENSE_CATEGORIES` + `CATEGORY_META`, daftarkan ikonnya di `CATEGORY_ICONS`. `tests/domain.test.ts` gagal bila ketiganya tidak sinkron.
+
+**Pemisahan environment.** `next dev` memuat `.env.local` dan itu menang atas `.env`. Menaruh URL produksi di `.env.local` membuat development lokal (dan test end-to-end) menulis ke database produksi. Karena itu URL produksi hanya boleh ada di `.env.production.local`, dan `tests/env-isolation.test.ts` mengunci aturannya. Fixture E2E juga menolak berjalan bila host database bukan localhost.
 
 **Rate limit & session di database.** Bertahan setelah restart dan konsisten di banyak proses.
 

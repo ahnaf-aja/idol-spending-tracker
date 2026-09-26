@@ -7,7 +7,18 @@ import {
   normalizeUsername,
 } from "@/lib/normalize";
 import { formatIDR, formatIDRCompact, formatIDRDigits, parseIDRInput } from "@/lib/currency";
-import { idolDisplayName, isExpenseCategory, isIdolType } from "@/lib/categories";
+import {
+  CATEGORY_LABELS,
+  CATEGORY_META,
+  CATEGORY_OPTIONS,
+  EXPENSE_CATEGORIES,
+  categoryColor,
+  categoryLabel,
+  idolDisplayName,
+  isExpenseCategory,
+  isIdolType,
+} from "@/lib/categories";
+import { CATEGORY_ICONS } from "@/components/expenses/fields";
 import { budgetProgress, groupByMember, groupByPeriod, summarize } from "@/lib/stats";
 import { expenseInputSchema, loginSchema, registerSchema, resetPasswordSchema } from "@/lib/validation";
 import { getPeriodForDate } from "@/lib/period";
@@ -112,10 +123,48 @@ describe("taxonomy guards", () => {
     expect(isExpenseCategory("VC")).toBe(true);
     expect(isExpenseCategory("TWO_SHOT")).toBe(true);
     expect(isExpenseCategory("SHOW")).toBe(true);
+    expect(isExpenseCategory("TOP_UP_POINT")).toBe(true);
     expect(isExpenseCategory("other")).toBe(false);
     expect(isIdolType("JKT48")).toBe(true);
     expect(isIdolType("OTHER")).toBe(true);
     expect(isIdolType("jkt48")).toBe(false);
+  });
+
+  it("setiap kategori punya metadata lengkap dan unik", () => {
+    const labels = EXPENSE_CATEGORIES.map((value) => CATEGORY_META[value].label);
+    expect(new Set(labels).size).toBe(EXPENSE_CATEGORIES.length);
+    expect(new Set(EXPENSE_CATEGORIES.map((v) => CATEGORY_META[v].color)).size).toBe(
+      EXPENSE_CATEGORIES.length,
+    );
+
+    for (const value of EXPENSE_CATEGORIES) {
+      const meta = CATEGORY_META[value];
+      expect(meta.value).toBe(value);
+      expect(meta.label.trim()).not.toBe("");
+      expect(meta.color).toMatch(/^#[0-9a-f]{6}$/i);
+      // A missing icon entry silently renders as Ticket, so assert instead.
+      expect(Object.keys(CATEGORY_ICONS)).toContain(meta.icon);
+    }
+
+    // The list the user sees must match the documented order (req: Top Up Point last).
+    expect(labels).toEqual([
+      "Show",
+      "Gift Barang",
+      "Gift Live",
+      "Cheki",
+      "MNG",
+      "2S",
+      "VC",
+      "Top Up Point",
+    ]);
+  });
+
+  it("kategori baru muncul di setiap permukaan turunan", () => {
+    // Dropdown/filter, form, dan chart semua membaca daftar yang sama.
+    expect(CATEGORY_OPTIONS.map((o) => o.label)).toContain("Top Up Point");
+    expect(CATEGORY_LABELS.TOP_UP_POINT).toBe("Top Up Point");
+    expect(categoryLabel("TOP_UP_POINT")).toBe("Top Up Point");
+    expect(categoryColor("TOP_UP_POINT")).not.toBe("#94a3b8");
   });
 });
 

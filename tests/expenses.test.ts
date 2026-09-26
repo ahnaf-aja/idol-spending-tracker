@@ -514,3 +514,123 @@ describe("idempotent create (requirement 46)", () => {
     expect(await listExpenses(b.id, { range: null })).toHaveLength(1);
   });
 });
+
+/**
+ * "Top Up Point" end to end through the real database: create, read back,
+ * appear in every derived view (dashboard totals, statistics, journal, filter),
+ * then edit out to VC and back again.
+ */
+describe("kategori Top Up Point (requirement: kategori baru)", () => {
+  const topUp = (overrides: Record<string, unknown> = {}) =>
+    validInput({
+      category: "TOP_UP_POINT",
+      amount: 500_000,
+      expenseDate: "2026-09-26",
+      note: "Top up point live",
+      ...overrides,
+    });
+
+  it("tersimpan apa adanya dan muncul di list/filter", async () => {
+    const user = await createTestUser("tup");
+    const created = await createExpense(user.id, topUp());
+
+    expect(created.category).toBe("TOP_UP_POINT");
+    expect(created.amount).toBe(500_000);
+    expect(created.memberName).toBe("FREYA");
+
+    // Read back from the database, not just the returned object.
+    const rows = await listExpenses(user.id, { range: null });
+    expect(rows).toHaveLength(1);
+    expect(rows[0].category).toBe("TOP_UP_POINT");
+
+    // Filtering by the new category must find it.
+    const filtered = await listExpenses(user.id, { range: null, category: "TOP_UP_POINT" });
+    expect(filtered).toHaveLength(1);
+  });
+
+  it("ikut terhitung di total, statistik kategori, dan budget", async () => {
+    const user = await createTestUser("tupstat");
+    await createExpense(user.id, validInput({ category: "VC", amount: 300_000 }));
+    await createExpense(user.id, topUp());
+
+    const rows = await listExpenses(user.id, { range: null });
+    const summary = summarize(rows);
+
+    expect(summary.total).toBe(800_000);
+    expect(summary.count).toBe(2);
+    expect(summary.largest).toBe(500_000);
+
+    const slice = summary.byCategory.find((s) => s.key === "TOP_UP_POINT");
+    expect(slice).toBeDefined();
+    expect(slice!.label).toBe("Top Up Point");
+    expect(slice!.amount).toBe(500_000);
+
+    // Budget "spent" is the period total, so the new category must raise it.
+    const period = currentPeriod();
+    const inPeriod = await listExpenses(user.id, { range: period });
+    expect(budgetProgress(1_000_000, inPeriod.reduce((s, e) => s + e.amount, 0)).spent).toBe(800_000);
+  });
+
+  it("member opsional: null valid, dan member tetap dinormalisasi UPPERCASE", async () => {
+    const user = await createTestUser("tupmem");
+
+    const withoutMember = await createExpense(user.id, topUp({ memberName: null }));
+    expect(withoutMember.memberName).toBeNull();
+    expect(withoutMember.category).toBe("TOP_UP_POINT");
+
+    const withLowercase = await createExpense(user.id, topUp({ memberName: "freya" }));
+    expect(withLowercase.memberName).toBe("FREYA");
+
+    // The transaction without a member is not a journal entry.
+    const journal = groupByMember(await listExpenses(user.id, { range: null }));
+    expect(journal.map((g) => g.name)).toEqual(["FREYA"]);
+  });
+
+  it("masuk ke Member Journal beserta total dan rata-ratanya", async () => {
+    const user = await createTestUser("tupjournal");
+    await createExpense(user.id, validInput({ category: "VC", amount: 300_000, memberName: "freya" }));
+    await createExpense(user.id, topUp({ memberName: "FREYA" }));
+
+    const journal = groupByMember(await listExpenses(user.id, { range: null }));
+    const freya = journal.find((g) => g.name === "FREYA")!;
+
+    expect(freya.count).toBe(2);
+    expect(freya.amount).toBe(800_000);
+    expect(freya.largest).toBe(500_000);
+    expect(freya.average).toBe(400_000);
+
+    // ...and the profile aggregate covers it too (`totalSpent` is all-time).
+    const profile = await getProfileStats(user.id);
+    expect(profile.totalSpent).toBe(800_000);
+    expect(profile.totalTransactions).toBe(2);
+    expect(profile.topCategoryByAmount?.category).toBe("TOP_UP_POINT");
+  });
+
+  it("edit ke VC lalu kembali ke Top Up Point tetap konsisten", async () => {
+    const user = await createTestUser("tupedit");
+    const created = await createExpense(user.id, topUp());
+
+    const asVc = await updateExpense(user.id, created.id, validInput({ category: "VC", amount: 500_000, expenseDate: "2026-09-26" }));
+    expect(asVc?.category).toBe("VC");
+    let summary = summarize(await listExpenses(user.id, { range: null }));
+    expect(summary.byCategory.map((s) => s.key)).toEqual(["VC"]);
+    expect(summary.total).toBe(500_000);
+
+    const backToTopUp = await updateExpense(user.id, created.id, topUp());
+    expect(backToTopUp?.category).toBe("TOP_UP_POINT");
+    summary = summarize(await listExpenses(user.id, { range: null }));
+    expect(summary.byCategory.map((s) => s.key)).toEqual(["TOP_UP_POINT"]);
+    expect(summary.byCategory[0].amount).toBe(500_000);
+    expect(summary.count).toBe(1);
+  });
+
+  it("penyimpanan tetap satu baris (tidak dobel) saat submit diulang", async () => {
+    const user = await createTestUser("tupdup");
+    const input = topUp({ clientToken: "topup-once" });
+
+    await createExpense(user.id, input);
+    await createExpense(user.id, input);
+
+    expect(await listExpenses(user.id, { range: null })).toHaveLength(1);
+  });
+});

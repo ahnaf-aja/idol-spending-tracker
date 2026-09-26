@@ -3,6 +3,7 @@
 import * as React from "react";
 import {
   Camera,
+  Coins,
   Gift,
   Handshake,
   Radio,
@@ -16,7 +17,11 @@ import { formatIDR, formatIDRDigits, parseIDRInput } from "@/lib/currency";
 import { CATEGORY_META } from "@/lib/categories";
 import { cn } from "@/lib/utils";
 
-/** Maps the string icon names in the taxonomy to real components. */
+/**
+ * Maps the string icon names in the taxonomy to real components.
+ * Every `icon` in CATEGORY_META must be present here - a missing entry falls
+ * back to Ticket silently, so tests/domain.test.ts asserts the two stay in sync.
+ */
 export const CATEGORY_ICONS: Record<string, LucideIcon> = {
   Ticket,
   Gift,
@@ -25,6 +30,7 @@ export const CATEGORY_ICONS: Record<string, LucideIcon> = {
   Handshake,
   Users,
   Video,
+  Coins,
 };
 
 export function CategoryIcon({ category, className }: { category: string; className?: string }) {
