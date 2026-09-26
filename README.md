@@ -36,17 +36,6 @@ npm run dev             # http://localhost:3000
 | `npm run typecheck` | `tsc --noEmit` |
 | `npm run lint` | ESLint |
 
-## Akun owner (initial account)
-
-Dibuat oleh `npm run seed` dari environment variable — **tidak ada credential di source code**:
-
-```
-SEED_USERNAME=nafaja
-SEED_USER_EMAIL=<diisi sendiri>
-SEED_USER_PASSWORD=<diisi sendiri>
-```
-
-Seed script mengecek username lebih dulu; kalau sudah ada, akun tidak dibuat ulang dan password tidak ditimpa.
 
 ## Struktur project
 
